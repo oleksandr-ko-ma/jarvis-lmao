@@ -128,6 +128,19 @@ Future enhancements and nice-to-haves for the hive-mind system.
 
 ## UI/UX
 
+- [ ] 🌙 **Qdrant memory visualization dashboard**
+  - 3D vector space visualization of memory embeddings
+  - Interactive exploration of memory clusters
+  - Visual branch relationships and connections
+  - Search query visualization (show nearest neighbors)
+  - Memory density heatmaps
+  - Timeline view of memory creation/access
+  - Filter by branch, type, tags, time range
+  - Export/import memory snapshots
+  - Integration with Qdrant's built-in dashboard
+  - Real-time updates as memories are added
+  - **Why**: Understanding what's stored in vector DB is hard without visualization
+
 - [ ] **Web dashboard**
   - Visualize hive-mind memory
   - Monitor system resources
