@@ -19,8 +19,5 @@ ENV OLLAMA_BASE_URL=http://host.containers.internal:11434
 ENV OLLAMA_MODEL=nomic-embed-text
 ENV OVERSEER_ENABLED=true
 
-# Expose port for MCP communication
-EXPOSE 8001
-
-# Run server
-CMD ["python", "src/server.py"]
+# Keep container running (MCP server will be invoked via exec)
+CMD ["tail", "-f", "/dev/null"]

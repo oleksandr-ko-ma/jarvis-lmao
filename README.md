@@ -65,14 +65,27 @@ pip install -r requirements.txt
 python scripts/init_schema.py
 ```
 
-### 3. Configure Claude Code
+### 3. Configure Environment
 ```bash
-# Add to Claude Code MCP config
-claude mcp add jarvis-lmao
+# Copy example files
+cp .env.example .env
+cp .mcp.json.example .mcp.json
+
+# Edit .env with your settings
+nano .env
 ```
 
-### 4. Set Global Rules
+### 4. Configure MCP (Optional: Slack Integration)
+```bash
+# Edit .mcp.json with your Slack tokens
+# See docs/SLACK_STEALTH_MODE.md for token extraction
+nano .mcp.json
+```
+
+### 5. Set Global Rules
 The system auto-updates `~/.claude/CLAUDE.md` with Jarvis rules on first run.
+
+**Full setup guide**: See [docs/SETUP.md](docs/SETUP.md)
 
 ## Usage
 

@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "jarvis-lmao": {
+      "command": "python3",
+      "args": ["-m", "src.server"],
+      "env": {}
+    },
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "slack-mcp-server"],
+      "env": {
+        "SLACK_MCP_XOXC_TOKEN": "xoxc-your-token-here",
+        "SLACK_MCP_XOXD_TOKEN": "your-d-cookie-here",
+        "SLACK_MCP_ADD_MESSAGE_TOOL": "false"
+      }
+    }
+  }
+}

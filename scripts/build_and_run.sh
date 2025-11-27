@@ -20,7 +20,6 @@ fi
 echo "🚀 Starting Jarvis LMAO..."
 podman run -d \
     --name jarvis-lmao \
-    -p 8001:8001 \
     --network host \
     --add-host=host.containers.internal:host-gateway \
     jarvis-lmao:latest

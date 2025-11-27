@@ -51,7 +51,7 @@ def test_store_memory():
 
     embedding1 = generate_embedding(text1)
     timestamp1 = datetime.now().isoformat()
-    point_id1 = generate_point_id(text1, branch1, timestamp1)
+    point_id1 = generate_point_id(text1, branch1)
 
     point1 = PointStruct(
         id=point_id1,
@@ -76,7 +76,7 @@ def test_store_memory():
 
     embedding2 = generate_embedding(text2)
     timestamp2 = datetime.now().isoformat()
-    point_id2 = generate_point_id(text2, branch2, timestamp2)
+    point_id2 = generate_point_id(text2, branch2)
 
     point2 = PointStruct(
         id=point_id2,
@@ -103,7 +103,7 @@ def test_store_memory():
 
     embedding3 = generate_embedding(text3)
     timestamp3 = datetime.now().isoformat()
-    point_id3 = generate_point_id(text3, branch3, timestamp3)
+    point_id3 = generate_point_id(text3, branch3)
 
     point3 = PointStruct(
         id=point_id3,

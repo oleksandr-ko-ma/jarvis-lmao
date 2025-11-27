@@ -21,3 +21,19 @@ Thumbs.db
 
 # Logs
 *.log
+
+# MCP Configuration (contains tokens!)
+.mcp.json
+
+# Slack tokens and credentials
+.env.slack
+
+# Test data and experiments
+test_*.py
+*_test.py
+
+# Cache files
+*.cache
+*_cache*.json
+.channels_cache*.json
+.users_cache*.json

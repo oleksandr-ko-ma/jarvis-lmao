@@ -33,6 +33,19 @@ except ImportError:
     print("Error: qdrant-client not installed. Run: pip install qdrant-client", file=sys.stderr)
     exit(1)
 
+try:
+    from .resource_monitor import get_system_info, get_resource_status
+    from .task_coordinator import TaskCoordinator
+except ImportError:
+    try:
+        from resource_monitor import get_system_info, get_resource_status
+        from task_coordinator import TaskCoordinator
+    except ImportError:
+        print("Warning: Resource monitor not available", file=sys.stderr)
+        get_system_info = None
+        get_resource_status = None
+        TaskCoordinator = None
+
 # Configuration
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
@@ -82,6 +95,9 @@ else:
 
 server = Server("jarvis-lmao")
 
+# Initialize task coordinator
+task_coordinator = TaskCoordinator() if TaskCoordinator else None
+
 def generate_embedding(text: str) -> list[float]:
     """Generate embedding vector for text"""
     if EMBEDDING_PROVIDER == "ollama":
@@ -114,9 +130,9 @@ def check_overseer(text: str, action_type: str = "unknown") -> dict:
 
     return {"safe": True, "reason": "passed_overseer_checks"}
 
-def generate_point_id(text: str, branch_id: str, timestamp: str) -> int:
-    """Generate deterministic ID from content + branch + time"""
-    content = f"{text}{branch_id}{timestamp}"
+def generate_point_id(text: str, branch_id: str) -> int:
+    """Generate deterministic ID from content + branch (for deduplication)"""
+    content = f"{text}{branch_id}"
     hash_obj = hashlib.sha256(content.encode())
     return int(hash_obj.hexdigest()[:16], 16)  # Use first 16 hex chars as int
 
@@ -211,6 +227,47 @@ async def list_tools() -> list[Tool]:
                 },
                 "required": ["action_text"]
             }
+        ),
+        Tool(
+            name="spawn_parallel_tasks",
+            description="Intelligently spawn parallel tasks with resource awareness",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "tasks": {
+                        "type": "array",
+                        "description": "List of tasks to execute",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "description": {"type": "string", "description": "Task description"},
+                                "type": {"type": "string", "description": "Task type: explore, analyze, test, search, etc."},
+                                "priority": {"type": "string", "description": "Priority: critical, high, medium, low", "default": "medium"}
+                            },
+                            "required": ["description", "type"]
+                        }
+                    },
+                    "branch_id": {"type": "string", "description": "Branch context for all tasks", "default": "main"},
+                    "strategy": {"type": "string", "description": "Execution strategy: auto, parallel, sequential, adaptive", "default": "auto"}
+                },
+                "required": ["tasks"]
+            }
+        ),
+        Tool(
+            name="get_task_stats",
+            description="Get statistics about parallel task execution",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        ),
+        Tool(
+            name="get_system_resources",
+            description="Get current system resource usage and parallelization capacity",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
         )
     ]
 
@@ -236,7 +293,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         timestamp = datetime.now().isoformat()
 
         # Create point with hive-mind metadata
-        point_id = generate_point_id(text, branch_id, timestamp)
+        point_id = generate_point_id(text, branch_id)
         point = PointStruct(
             id=point_id,
             vector=embedding,
@@ -333,8 +390,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             # Generate new ID for target branch
             new_id = generate_point_id(
                 new_payload["text"],
-                target_branch,
-                new_payload["merged_at"]
+                target_branch
             )
 
             new_point = PointStruct(
@@ -413,6 +469,130 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             output += f"Reason: {result['reason']}\n"
             output += f"Severity: {result.get('severity', 'unknown')}\n"
             output += f"Requires approval: {result.get('requires_approval', False)}"
+
+        return [TextContent(type="text", text=output)]
+
+    elif name == "spawn_parallel_tasks":
+        if not task_coordinator:
+            return [TextContent(type="text", text="❌ Task coordinator not available")]
+
+        tasks = arguments["tasks"]
+        branch_id = arguments.get("branch_id", "main")
+        strategy = arguments.get("strategy", "auto")
+
+        # Create execution plan
+        plan = task_coordinator.create_execution_plan(tasks, branch_id, strategy)
+
+        output = f"🚀 Parallel Task Execution Plan\n\n"
+        output += f"Strategy: {plan.strategy.upper()}\n"
+        output += f"Branch: {plan.branch_id}\n"
+        output += f"Total Tasks: {plan.total_tasks}\n\n"
+
+        output += f"📊 Resource Status:\n"
+        output += f"  CPU: {plan.resource_status['cpu_percent']}\n"
+        output += f"  RAM: {plan.resource_status['ram_percent']}\n"
+        output += f"  Zone: {plan.resource_status['zone'].upper()}\n\n"
+
+        if plan.parallel_tasks:
+            output += f"⚡ Running in Parallel ({len(plan.parallel_tasks)}):\n"
+            for i, task in enumerate(plan.parallel_tasks, 1):
+                output += f"  {i}. [{task.priority.name}] {task.description}\n"
+            output += "\n"
+
+        if plan.queued_tasks:
+            output += f"⏳ Queued ({len(plan.queued_tasks)}):\n"
+            for i, task in enumerate(plan.queued_tasks, 1):
+                output += f"  {i}. [{task.priority.name}] {task.description}\n"
+            output += "\n"
+
+        output += "💡 Tip: Use Task tool in Claude Code to execute these in parallel!\n"
+        output += "Example: Send a single message with multiple Task tool calls."
+
+        # Store execution plan in memory for learning
+        plan_text = f"Parallel execution plan created: {plan.total_tasks} tasks, strategy={plan.strategy}, branch={plan.branch_id}"
+        embedding = generate_embedding(plan_text)
+        timestamp = datetime.now().isoformat()
+        point_id = generate_point_id(plan_text, branch_id)
+
+        point = PointStruct(
+            id=point_id,
+            vector=embedding,
+            payload={
+                "text": plan_text,
+                "branch_id": branch_id,
+                "timestamp": timestamp,
+                "type": "parallel_execution",
+                "task_count": plan.total_tasks,
+                "strategy": plan.strategy,
+                "overseer_status": "approved"
+            }
+        )
+        qdrant_client.upsert(collection_name=COLLECTION_NAME, points=[point])
+
+        return [TextContent(type="text", text=output)]
+
+    elif name == "get_task_stats":
+        if not task_coordinator:
+            return [TextContent(type="text", text="❌ Task coordinator not available")]
+
+        stats = task_coordinator.get_task_stats()
+
+        output = f"📊 Task Statistics\n\n"
+        output += f"Total Tasks: {stats['total_tasks']}\n"
+        output += f"Running: {stats['running']}\n"
+        output += f"Queued: {stats['queued']}\n"
+        output += f"Completed: {stats['completed']}\n"
+        output += f"Failed: {stats['failed']}\n\n"
+
+        output += f"💻 Resource Status:\n"
+        output += f"  CPU: {stats['resource_status']['cpu_percent']}\n"
+        output += f"  RAM: {stats['resource_status']['ram_percent']}\n"
+        output += f"  Zone: {stats['resource_status']['zone'].upper()}\n"
+        output += f"  Can spawn more: {stats['resource_status']['can_spawn_more']}\n\n"
+
+        if stats['running_tasks']:
+            output += f"⚡ Currently Running:\n"
+            for task in stats['running_tasks']:
+                output += f"  • [{task['priority']}] {task['description']}\n"
+            output += "\n"
+
+        if stats['queued_tasks']:
+            output += f"⏳ Queued:\n"
+            for task in stats['queued_tasks']:
+                output += f"  • [{task['priority']}] {task['description']}\n"
+
+        return [TextContent(type="text", text=output)]
+
+    elif name == "get_system_resources":
+        if not get_system_info or not get_resource_status:
+            return [TextContent(type="text", text="❌ Resource monitor not available")]
+
+        info = get_system_info()
+        current_agents = len([t for t in task_coordinator.tasks.values() if t.status.value == "running"]) if task_coordinator else 0
+        status = get_resource_status(current_agents)
+
+        output = f"💻 System Resources\n\n"
+        output += f"CPU:\n"
+        output += f"  Cores: {info['cpu']['count']}\n"
+        output += f"  Usage: {info['cpu']['percent']}%\n\n"
+
+        output += f"RAM:\n"
+        output += f"  Total: {info['ram']['total_gb']} GB\n"
+        output += f"  Available: {info['ram']['available_gb']} GB\n"
+        output += f"  Usage: {info['ram']['percent']}%\n\n"
+
+        output += f"Parallelization Capacity:\n"
+        output += f"  Zone: {status.zone.upper()}\n"
+        output += f"  Max Agents: {status.max_agents}\n"
+        output += f"  Current Agents: {status.current_agents}\n"
+        output += f"  Can Spawn: {status.can_spawn}\n"
+        output += f"  Reason: {status.reason}\n\n"
+
+        output += f"Thresholds:\n"
+        output += f"  CPU Safe: {info['thresholds']['cpu_safe']}\n"
+        output += f"  CPU Danger: {info['thresholds']['cpu_danger']}\n"
+        output += f"  RAM Safe: {info['thresholds']['ram_safe']}\n"
+        output += f"  RAM Danger: {info['thresholds']['ram_danger']}"
 
         return [TextContent(type="text", text=output)]
 
