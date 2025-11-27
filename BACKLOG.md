@@ -111,10 +111,37 @@ Future enhancements and nice-to-haves for the hive-mind system.
 
 ## Security & Monitoring
 
-- [ ] **Enhanced Silent Overseer**
-  - ML-based anomaly detection
-  - Context-aware safety checks
-  - User behavior profiling
+- [ ] 💡 **Enhanced Silent Overseer** (Currently just basic pattern matching)
+  - **Rate limiting and throttling**
+    - Detect rapid-fire destructive actions
+    - Limit number of high-risk operations per minute/hour
+    - Exponential backoff for repeated dangerous patterns
+    - Per-action type throttling (e.g., git force push, DB operations)
+  - **Learning from approved/rejected actions**
+    - Store history of Overseer decisions in Qdrant
+    - Track which patterns user approved vs rejected
+    - Build user-specific safety profile over time
+    - Auto-approve previously approved patterns
+    - Escalate new dangerous patterns
+  - **Context-aware safety checks**
+    - Consider branch context (production vs dev)
+    - Check git status before allowing force push
+    - Verify backup exists before destructive DB operations
+    - Check if files are staged before allowing hard reset
+    - Understand command chains (e.g., backup && delete is safer than just delete)
+  - **ML-based anomaly detection**
+    - Embedding-based similarity to known dangerous actions
+    - Detect unusual sequences of operations
+    - Flag actions outside normal working hours
+    - Identify privilege escalation attempts
+    - Detect data exfiltration patterns
+  - **User behavior profiling**
+    - Learn normal working patterns (time of day, types of operations)
+    - Flag atypical behavior (e.g., sudden DB operations at 3am)
+    - Team-level baselines (what's normal for FI SRE team)
+    - Adaptive thresholds based on user expertise level
+  - **Current state**: Basic string pattern matching only
+  - **Why medium priority**: Safety is important, but basic protection already exists
 
 - [ ] **Audit logging**
   - Complete action history
