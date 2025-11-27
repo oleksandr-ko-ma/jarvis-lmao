@@ -280,12 +280,13 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         query_filter = Filter(must=filter_conditions) if filter_conditions else None
 
         # Search
-        results = qdrant_client.search(
+        search_response = qdrant_client.query_points(
             collection_name=COLLECTION_NAME,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=limit,
             query_filter=query_filter
         )
+        results = search_response.points
 
         if not results:
             return [TextContent(type="text", text="No memories found.")]
