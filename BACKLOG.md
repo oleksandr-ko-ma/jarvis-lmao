@@ -2,6 +2,22 @@
 
 Future enhancements and nice-to-haves for the hive-mind system.
 
+## High Priority 🔥
+
+- [ ] **Improve Jarvis container logging and observability**
+  - Add structured logging (JSON format) for better parsing
+  - Log levels: DEBUG, INFO, WARNING, ERROR with configurable verbosity
+  - Real-time log streaming: `podman logs -f jarvis-lmao` should show what's happening
+  - Log MCP tool calls: which tools are invoked, with what parameters
+  - Log memory operations: searches, stores, merges with timing metrics
+  - Log Silent Overseer decisions: what was checked, approved/denied
+  - Performance metrics: embedding generation time, Qdrant query latency
+  - Error context: full stack traces with operation context
+  - Log rotation and retention policy
+  - Optional: Export logs to external system (Loki, CloudWatch, etc.)
+  - Health check endpoint for container monitoring
+  - **Why**: Currently hard to debug what Jarvis is doing without better logging
+
 ## Slack Integration Enhancements
 
 ### Token Management
